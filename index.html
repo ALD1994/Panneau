@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panneau Mariage - Choix du format</title>
+  <style>
+    @font-face {
+      font-family: 'Brisca';
+      src: url('Brisca.otf');
+    }
+    @font-face {
+      font-family: 'WeddingScript';
+      src: url('WeddingScript.otf');
+    }
+
+    body {
+      background: #fff;
+      font-family: 'Georgia', serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .controls input, .controls select {
+      margin: 5px;
+      padding: 8px;
+      font-size: 16px;
+    }
+
+    #downloadBtn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #d4af37;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .canvas-zone {
+      position: relative;
+      background: white;
+      border: 1px solid #ccc;
+      overflow: hidden;
+    }
+
+    .canvas-zone img.fond {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .photo-zone {
+      position: absolute;
+      top: 15%;
+      left: 0;
+      width: 100%;
+      height: 70%;
+      overflow: hidden;
+      z-index: 1;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+    }
+
+    .photo-zone img {
+      position: absolute;
+      cursor: move;
+      user-select: none;
+    }
+
+    .editable-text {
+      position: absolute;
+      text-align: center;
+      color: white;
+      font-weight: bold;
+      z-index: 2;
+      text-shadow: 1px 1px 4px black;
+      cursor: move;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <label>Choisir le format :</label>
+    <select id="formatSelect">
+      <option value="a4">A4 (21x29.7cm)</option>
+      <option value="large">Panneau 50x100cm</option>
+    </select><br>
+
+    <input type="file" id="photoInput" accept="image/*"><br>
+    <input type="text" placeholder="Ligne 1" id="input1">
+    <input type="text" placeholder="Ligne 2 (script)" id="input2"><br>
+    <input type="text" placeholder="Nom 1" id="input3">
+    <input type="text" placeholder="Nom 2" id="input4"><br>
+    <input type="text" placeholder="Citation" id="input5"><br>
+    <button id="downloadBtn">Télécharger en PDF</button>
+  </div>
+
+  <div class="canvas-zone" id="captureArea" style="width:595px; height:842px;">
+    <img src="fond_original.png" class="fond" id="bgImage">
+    <div class="photo-zone" id="photoZone">
+      <img id="userPhoto" src="">
+    </div>
+    <div class="editable-text" id="text1" style="font-size: 28px; font-family: 'Brisca'; left: 0; width: 100%; top: 30px;">WELCOME TO OUR</div>
+    <div class="editable-text" id="text2" style="font-size: 60px; font-family: 'WeddingScript'; left: 0; width: 100%; top: 90px;">Wedding</div>
+    <div class="editable-text" id="text3" style="font-size: 38px; font-family: 'Brisca'; left: 0; width: 100%; top: 80%;">SOCHIMA</div>
+    <div class="editable-text" id="text4" style="font-size: 38px; font-family: 'Brisca'; left: 0; width: 100%; top: 84%;">CHUKWU</div>
+    <div class="editable-text" id="text5" style="font-size: 18px; font-family: 'Brisca'; letter-spacing: 3px; left: 0; width: 100%; top: 90%;">AINSI ILS NE SONT PLUS DEUX MAIS UNE SEULE CHAIR</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const formatSelect = document.getElementById('formatSelect');
+    const captureArea = document.getElementById('captureArea');
+    const bgImage = document.getElementById('bgImage');
+
+    formatSelect.addEventListener('change', () => {
+      if (formatSelect.value === 'large') {
+        captureArea.style.width = '1000px';
+        captureArea.style.height = '2000px';
+      } else {
+        captureArea.style.width = '595px';
+        captureArea.style.height = '842px';
+      }
+    });
+
+    // Texte et image client
+    const inputs = [
+      { inputId: 'input1', textId: 'text1' },
+      { inputId: 'input2', textId: 'text2' },
+      { inputId: 'input3', textId: 'text3' },
+      { inputId: 'input4', textId: 'text4' },
+      { inputId: 'input5', textId: 'text5' }
+    ];
+
+    inputs.forEach(pair => {
+      document.getElementById(pair.inputId).addEventListener('input', e => {
+        document.getElementById(pair.textId).textContent = e.target.value;
+      });
+    });
+
+    const userPhoto = document.getElementById('userPhoto');
+    const photoInput = document.getElementById('photoInput');
+    const photoZone = document.getElementById('photoZone');
+    let isDraggingPhoto = false, offsetX = 0, offsetY = 0;
+
+    photoInput.addEventListener('change', e => {
+      const reader = new FileReader();
+      reader.onload = event => {
+        userPhoto.src = event.target.result;
+        userPhoto.style.left = '0px';
+        userPhoto.style.top = '0px';
+        userPhoto.style.width = '100%';
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    userPhoto.addEventListener('mousedown', e => {
+      isDraggingPhoto = true;
+      offsetX = e.offsetX;
+      offsetY = e.offsetY;
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (isDraggingPhoto) {
+        const rect = photoZone.getBoundingClientRect();
+        userPhoto.style.left = (e.clientX - rect.left - offsetX) + 'px';
+        userPhoto.style.top = (e.clientY - rect.top - offsetY) + 'px';
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingPhoto = false;
+    });
+
+    const ids = ['text1', 'text2', 'text3', 'text4', 'text5'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      let drag = false, dx = 0, dy = 0;
+      el.addEventListener('mousedown', e => {
+        drag = true;
+        dx = e.offsetX;
+        dy = e.offsetY;
+      });
+      window.addEventListener('mousemove', e => {
+        if (drag) {
+          const r = el.parentElement.getBoundingClientRect();
+          el.style.left = (e.clientX - r.left - dx) + 'px';
+          el.style.top = (e.clientY - r.top - dy) + 'px';
+        }
+      });
+      window.addEventListener('mouseup', () => drag = false);
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      html2canvas(captureArea).then(canvas => {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'pt', [canvas.width, canvas.height]);
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save("panneau_personnalise.pdf");
+      });
+    });
+  </script>
+</body>
+</html>
